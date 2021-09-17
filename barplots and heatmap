@@ -1,0 +1,103 @@
+## 文件：
+
+![Untitled](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/9a6a48dd-2ce3-4901-bc5e-c8808f14af44/Untitled.png)
+
+分别是feature table和merge的taxonomy table
+
+feature table 好像也是merge的，所以其实不需要merge.table_w_tax.qza也能行
+
+### 1. feature table.txt —> feature-table.qza：
+
+![Untitled](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/c37f202f-fcfa-4656-bc0d-acff1b6cb5f3/Untitled.png)
+
+列是物种，行是样本
+
+```python
+#首先，对feature table进行格式转换，先转换成.biom，再转换成.qza
+biom convert -i feature-table.txt \
+> -o feature-table.biom --to-hdf5 --table-type="OTU table"
+
+qiime tools import --input-path feature-table.biom \
+> --type 'FeatureTable[Frequency]' --input-format BIOMV210Format \
+> --output-path feature-table.qza
+```
+
+### 2. merge的Taxonomy Table：
+
+![Untitled](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/98fc7307-8682-4f43-927f-675969892402/Untitled.png)
+
+列是样本id，行是物种
+
+```python
+
+#将merge的taxnomy.qza转换为qzv，再在qiime2 view里面下载tsv
+qiime metadata tabulate \
+> --m-input-file r5.league_table.filter_w_tax.qza \
+> --o-visualization r5.league_table.filter_w_tax.qzv
+```
+
+### 3. 利用以上两个文件制作taxonomy.qza
+
+先在excel里编辑，另存为.tsv
+
+转换为.qza之前用 feature table和merge.table_w_tax.qza变成以**feature id和taxon**为列的tsv，另存为taxonomy.tsv即可，再转换格式
+
+![Untitled](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/cffc0ef4-9560-43e5-989e-2f2aeae0903f/Untitled.png)
+
+```python
+#将taxonomy.tsv转化为.qza
+qiime tools import \
+    --type 'FeatureData[Taxonomy]' \
+    --input-path taxonomy.tsv \
+    --output-path taxonomy.qza
+```
+
+### 4. 制作sample-metadata-file（.txt .tsv都可以）
+
+用excel，另存为txt格式即可
+
+![Untitled](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/bc0a7a5f-48e0-4ea9-bf02-e5fd92239fd8/Untitled.png)
+
+包含sample-id 和 sample-type
+
+### 5. 利用以上三个文件进行分析
+
+（1）绘制相对丰度barplots
+
+```python
+#绘制barplots：需要featuretable、taxonomy、samplemetadata共三个文件
+qiime taxa barplot \
+  --i-table table.qza \
+  --i-taxonomy taxonomy.qza \
+  --m-metadata-file sample-metadata.tsv \
+  --o-visualization taxa-bar-plots.qzv
+
+#可视化
+qiime tools view taxa-bar-plots.qzv
+```
+
+示例：
+
+![Untitled](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/9866b6e8-7520-4159-bd92-5985aa349831/Untitled.png)
+
+（2）绘制热图
+
+```python
+#绘制热图只需要feature-table和sample metadata
+qiime feature-table heatmap \
+> --i-table feature-table.qza \
+> --m-sample-metadata-file sample-metadata.txt \
+> --o-visualization heatmap.qzv \
+> --m-sample-metadata-column sample-type \
+
+> --p-cluster both \
+> --p-color-scheme rocket
+#后两行是可选的参数（默认为以上选项）
+
+#可视化
+qiime tools view heatmap.qzv
+```
+
+示例：
+
+![Untitled](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/02d33e86-b8fb-42b8-8c1d-611b24adde5b/Untitled.png)
